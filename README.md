@@ -2,6 +2,8 @@
 
 *Created by Papa Lanc and his buddy Claude*
 
+✅ **HACS install verified** — the custom repository install flow below (add repo → search → download) has been tested end-to-end and works.
+
 A Home Assistant Lovelace card that shows min / max / mean temperature history
 for **today, yesterday, week, month, and year** as compact range bars, plus
 the current reading and the change vs. 24 hours ago.
