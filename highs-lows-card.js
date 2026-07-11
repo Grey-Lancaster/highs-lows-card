@@ -24,6 +24,10 @@
 // Example card config (auto-discover all temperature sensors):
 // type: custom:highs-lows-card
 // title: Temperature Sensors
+// unit: auto   # optional: "auto" (default), "°F", or "°C" — converts readings for display
+//
+// Has a visual editor (title + unit dropdown + refresh interval); use "Show
+// code editor" for the full entities: list.
 
 const PERIODS = [
   { key: "today",     label: "today",     granularity: "hour" },
@@ -61,6 +65,16 @@ function periodRange(key) {
       return [start, now];
     }
   }
+}
+
+function convertTemp(value, fromUnit, toUnit) {
+  if (value === null || value === undefined || isNaN(value)) return value;
+  if (!fromUnit || !toUnit || fromUnit === toUnit) return value;
+  const isF = (u) => u === "°F" || u === "F";
+  const isC = (u) => u === "°C" || u === "C";
+  if (isF(fromUnit) && isC(toUnit)) return (value - 32) * 5 / 9;
+  if (isC(fromUnit) && isF(toUnit)) return value * 9 / 5 + 32;
+  return value;
 }
 
 function heatIndexF(tempF, rh) {
@@ -175,6 +189,24 @@ class HighsLowsCard extends HTMLElement {
 
   getCardSize() {
     return 5;
+  }
+
+  static getConfigElement() {
+    return document.createElement("highs-lows-card-editor");
+  }
+
+  static getStubConfig() {
+    return { title: "Temperature Sensors", unit: "auto" };
+  }
+
+  // config.unit: "auto" (sensor's own unit), "°F", or "°C".
+  _displayUnit(nativeUnit) {
+    const u = this._config.unit;
+    return !u || u === "auto" ? nativeUnit : u;
+  }
+
+  _conv(value, nativeUnit) {
+    return convertTemp(value, nativeUnit, this._displayUnit(nativeUnit));
   }
 
   _cfgFor(entity) {
@@ -333,10 +365,12 @@ class HighsLowsCard extends HTMLElement {
     const cfg = this._cfgFor(this._selected);
     const state = this._hass.states[cfg.entity];
     if (!state) return;
-    const current = parseFloat(state.state);
-    if (isNaN(current)) return;
-    const unit = state.attributes.unit_of_measurement || "";
-    this._q("cur").textContent = `${current.toFixed(1)}${unit}`;
+    const rawCurrent = parseFloat(state.state);
+    if (isNaN(rawCurrent)) return;
+    const nativeUnit = state.attributes.unit_of_measurement || "";
+    const displayUnit = this._displayUnit(nativeUnit);
+    const current = this._conv(rawCurrent, nativeUnit);
+    this._q("cur").textContent = `${current.toFixed(1)}${displayUnit}`;
 
     const feelsWrap = this._q("feelslike-wrap");
     if (cfg.humidity_entity) {
@@ -344,7 +378,12 @@ class HighsLowsCard extends HTMLElement {
       feelsWrap.style.display = "";
       if (humState) {
         const rh = parseFloat(humState.state);
-        if (!isNaN(rh)) this._q("feelslike").textContent = `${heatIndexF(current, rh).toFixed(1)}${unit}`;
+        if (!isNaN(rh)) {
+          // heatIndexF needs Fahrenheit input regardless of native/display unit.
+          const rawCurrentF = convertTemp(rawCurrent, nativeUnit, "°F");
+          const feelsDisplay = convertTemp(heatIndexF(rawCurrentF, rh), "°F", displayUnit);
+          this._q("feelslike").textContent = `${feelsDisplay.toFixed(1)}${displayUnit}`;
+        }
       }
     } else {
       feelsWrap.style.display = "none";
@@ -426,16 +465,25 @@ class HighsLowsCard extends HTMLElement {
     statusEl.textContent = "Loading…";
     statusEl.classList.remove("error");
     try {
+      const state = this._hass.states[cfg.entity];
+      const nativeUnit = state ? (state.attributes.unit_of_measurement || "") : "";
+
       const results = {};
       for (const p of PERIODS) {
-        results[p.key] = await this._getStats(cfg.entity, p);
+        const raw = await this._getStats(cfg.entity, p);
+        results[p.key] = raw ? {
+          min: this._conv(raw.min, nativeUnit),
+          max: this._conv(raw.max, nativeUnit),
+          mean: raw.mean !== null ? this._conv(raw.mean, nativeUnit) : null,
+        } : null;
       }
 
-      const state = this._hass.states[cfg.entity];
-      const current = state ? parseFloat(state.state) : NaN;
+      const rawCurrent = state ? parseFloat(state.state) : NaN;
+      const current = isNaN(rawCurrent) ? NaN : this._conv(rawCurrent, nativeUnit);
 
       const yesterdaySameTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const priorValue = await this._getStateAt(cfg.entity, yesterdaySameTime);
+      const rawPrior = await this._getStateAt(cfg.entity, yesterdaySameTime);
+      const priorValue = rawPrior !== null ? this._conv(rawPrior, nativeUnit) : null;
       const deltaEl = this._q("delta");
       if (priorValue !== null && !isNaN(current)) {
         const diff = current - priorValue;
@@ -463,7 +511,106 @@ class HighsLowsCard extends HTMLElement {
   }
 }
 
+class HighsLowsCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = { ...config };
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  connectedCallback() {
+    this._render();
+  }
+
+  _emit(newConfig) {
+    this._config = newConfig;
+    this.dispatchEvent(new CustomEvent("config-changed", {
+      detail: { config: newConfig },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  _schema() {
+    return [
+      { name: "title", selector: { text: {} } },
+      {
+        name: "unit",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: [
+              { value: "auto", label: "Sensor's native unit" },
+              { value: "°F", label: "Fahrenheit (°F)" },
+              { value: "°C", label: "Celsius (°C)" },
+            ],
+          },
+        },
+      },
+      {
+        name: "refresh_interval",
+        selector: { number: { min: 30, max: 3600, step: 30, mode: "box", unit_of_measurement: "s" } },
+      },
+    ];
+  }
+
+  _render() {
+    if (!this._hass || !this._config) return;
+    const HaForm = customElements.get("ha-form");
+    this.innerHTML = "";
+
+    if (HaForm) {
+      const form = document.createElement("ha-form");
+      form.hass = this._hass;
+      form.data = {
+        title: this._config.title || "",
+        unit: this._config.unit || "auto",
+        refresh_interval: this._config.refresh_interval || 300,
+      };
+      form.schema = this._schema();
+      form.computeLabel = (schemaItem) => ({
+        title: "Title",
+        unit: "Temperature unit",
+        refresh_interval: "Refresh interval",
+      }[schemaItem.name] || schemaItem.name);
+      form.addEventListener("value-changed", (e) => {
+        this._emit({ ...this._config, ...e.detail.value });
+      });
+      this.appendChild(form);
+    } else {
+      // Minimal fallback for older frontends without ha-form loaded yet.
+      const wrap = document.createElement("div");
+      wrap.style.padding = "12px";
+      wrap.innerHTML = `
+        <div style="margin-bottom:12px">
+          <label style="display:block;font-size:12px;margin-bottom:4px;">Title</label>
+          <input id="title" type="text" style="width:100%;padding:8px;box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="display:block;font-size:12px;margin-bottom:4px;">Temperature unit</label>
+          <select id="unit" style="width:100%;padding:8px;box-sizing:border-box;">
+            <option value="auto">Sensor's native unit</option>
+            <option value="°F">Fahrenheit (°F)</option>
+            <option value="°C">Celsius (°C)</option>
+          </select>
+        </div>
+      `;
+      this.appendChild(wrap);
+      const titleInput = wrap.querySelector("#title");
+      const unitSelect = wrap.querySelector("#unit");
+      titleInput.value = this._config.title || "";
+      unitSelect.value = this._config.unit || "auto";
+      titleInput.addEventListener("change", () => this._emit({ ...this._config, title: titleInput.value }));
+      unitSelect.addEventListener("change", () => this._emit({ ...this._config, unit: unitSelect.value }));
+    }
+  }
+}
+
 customElements.define("highs-lows-card", HighsLowsCard);
+customElements.define("highs-lows-card-editor", HighsLowsCardEditor);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
