@@ -28,9 +28,10 @@ the current reading and the change vs. 24 hours ago.
 ### Via HACS (custom repository)
 
 1. HACS → ⋮ (top right) → **Custom repositories**
-2. Add this repo's URL, category **Dashboard**
-3. Install **Highs & Lows Card**
-4. Home Assistant will auto-register the resource for you
+2. Add `https://github.com/Grey-Lancaster/highs-lows-card`, category **Dashboard**
+3. Close the dialog, then use HACS's search bar to search **"Lancaster"** (or "Highs & Lows") to find the card in the list
+4. Click the ⋮ next to it → **Download**
+5. Home Assistant will auto-register the resource for you
 
 ### Manual
 
