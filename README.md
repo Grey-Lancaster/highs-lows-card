@@ -41,7 +41,7 @@ the current reading and the change vs. 24 hours ago.
 
 ## Usage
 
-### Auto-discover mode (recommended for sharing)
+### Auto-discover mode (recommended)
 
 Omit `entities` and the card scans your instance for every sensor with
 `device_class: temperature`, and gives you Home Assistant's own entity
