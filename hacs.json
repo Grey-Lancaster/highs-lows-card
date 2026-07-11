@@ -1,6 +1,6 @@
 {
-  "name": "Temperature History Card",
+  "name": "Highs & Lows Card",
   "content_in_root": true,
-  "filename": "temp-history-card.js",
+  "filename": "highs-lows-card.js",
   "render_readme": true
 }

@@ -1,8 +1,8 @@
 // Created by Papa Lanc and his buddy Claude
 //
-// Temperature History Card
-// Custom Lovelace card: min/max/mean history bars for today/yesterday/week/month/year,
-// with a dropdown to switch between sensors.
+// Highs & Lows Card
+// Custom Lovelace card: min/max/mean temperature history bars for
+// today/yesterday/week/month/year, with a dropdown to switch between sensors.
 // Runs natively inside Home Assistant (no CORS, no long-lived token — uses the
 // frontend's own authenticated connection via hass.callWS / hass.callApi).
 //
@@ -11,7 +11,7 @@
 // humidity sensor from the same device for the "feels like" reading.
 //
 // Example card config (manual list):
-// type: custom:temp-history-card
+// type: custom:highs-lows-card
 // title: Shop & sensors
 // entities:
 //   - entity: sensor.shop_temperature
@@ -22,7 +22,7 @@
 // default_entity: sensor.shop_temperature   # optional, defaults to first in list
 //
 // Example card config (auto-discover all temperature sensors):
-// type: custom:temp-history-card
+// type: custom:highs-lows-card
 // title: Temperature Sensors
 
 const PERIODS = [
@@ -110,7 +110,7 @@ const STYLE = `
   .status-line.error { color: var(--error-color, #d85a30); }
 `;
 
-class TempHistoryCard extends HTMLElement {
+class HighsLowsCard extends HTMLElement {
   setConfig(config) {
     this._config = { ...config };
     this._autoMode = !config.entities || !config.entities.length;
@@ -389,7 +389,7 @@ class TempHistoryCard extends HTMLElement {
       }
       return null;
     } catch (err) {
-      console.error(`temp-history-card: getStateAt failed for ${entity}`, err);
+      console.error(`highs-lows-card: getStateAt failed for ${entity}`, err);
       return null;
     }
   }
@@ -463,11 +463,11 @@ class TempHistoryCard extends HTMLElement {
   }
 }
 
-customElements.define("temp-history-card", TempHistoryCard);
+customElements.define("highs-lows-card", HighsLowsCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: "temp-history-card",
-  name: "Temperature History Card",
+  type: "highs-lows-card",
+  name: "Highs & Lows Card",
   description: "Min/max/mean temperature bars for today/yesterday/week/month/year, with a sensor picker.",
 });

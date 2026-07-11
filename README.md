@@ -1,4 +1,4 @@
-# Temperature History Card
+# Highs & Lows Card
 
 *Created by Papa Lanc and his buddy Claude*
 
@@ -29,14 +29,14 @@ the current reading and the change vs. 24 hours ago.
 
 1. HACS → ⋮ (top right) → **Custom repositories**
 2. Add this repo's URL, category **Dashboard**
-3. Install **Temperature History Card**
+3. Install **Highs & Lows Card**
 4. Home Assistant will auto-register the resource for you
 
 ### Manual
 
-1. Copy `temp-history-card.js` into `/config/www/`
+1. Copy `highs-lows-card.js` into `/config/www/`
 2. Settings → Dashboards → ⋮ → **Resources** → Add Resource
-   - URL: `/local/temp-history-card.js`
+   - URL: `/local/highs-lows-card.js`
    - Type: JavaScript Module
 
 ## Usage
@@ -50,7 +50,7 @@ Disabled, hidden, and diagnostic entities (e.g. internal chip temperature
 sensors) are excluded automatically.
 
 ```yaml
-type: custom:temp-history-card
+type: custom:highs-lows-card
 title: Temperature Sensors
 ```
 
@@ -61,7 +61,7 @@ pairing if you want to control the Feels Like source yourself rather than
 relying on auto-detection:
 
 ```yaml
-type: custom:temp-history-card
+type: custom:highs-lows-card
 title: Shop & sensors
 entities:
   - entity: sensor.shop_temperature
